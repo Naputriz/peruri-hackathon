@@ -1,4 +1,0 @@
-top_module: garblechip
-project_name: GarbleChip
-track: Track 02 - Hardware Cryptography Accelerator
-target: Terasic DE10-Nano (Intel Cyclone V SoC 5CSEBA6U23I7)

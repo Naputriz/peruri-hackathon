@@ -1,7 +1,10 @@
 // ============================================================================
-// tb.v — Testbench GarbleChip (Chip Merah Putih Peruri)
-// Format sintaks murni mengikuti contoh resmi Peruri Sandbox (tb_lampu_lalu_lintas)
+// File: test/tb.v (Peruri Web Simulator Sandbox Target)
+// Proyek: GarbleChip — Hardware Cryptography Accelerator (Chip Merah Putih Peruri)
+// Modul: tb_garblechip (Testbench Evaluator Sirkuit Private PIN)
+// Format Sintaks: 100% Mengikuti Standar Resmi Peruri (Template tb_lampu_lalu_lintas)
 // ============================================================================
+
 module tb_garblechip;
   reg          clk = 0;
   reg          rst_n = 0;
@@ -47,7 +50,7 @@ module tb_garblechip;
   initial begin
     #20 rst_n = 1;
 
-    // STEP 1: Muat Label Input User (Kawat 0) = PIN Masukan
+    // STEP 1: Muat Label Input User (Kawat 0) = PIN Masukan Rahasia
     #20;
     opcode   = 2'd0; // OP_LOAD
     dst_id   = 3'd0;
@@ -56,7 +59,7 @@ module tb_garblechip;
     #10 start = 0;
     #20;
 
-    // STEP 2: Muat Label Input Bank (Kawat 1) = Database PIN Hash
+    // STEP 2: Muat Label Input Server (Kawat 1) = Database Master Hash
     #20;
     opcode   = 2'd0; // OP_LOAD
     dst_id   = 3'd1;
@@ -65,7 +68,7 @@ module tb_garblechip;
     #10 start = 0;
     #20;
 
-    // STEP 3: Evaluasi Free-XOR: Kawat 2 = Kawat 0 ^ Kawat 1 (1 Siklus Akselerasi)
+    // STEP 3: Evaluasi Free-XOR: Kawat 2 = Kawat 0 ^ Kawat 1 (1 Siklus Akselerasi Instan)
     #20;
     opcode   = 2'd1; // OP_XOR (Free-XOR)
     dst_id   = 3'd2;

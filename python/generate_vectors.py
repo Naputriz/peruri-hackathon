@@ -90,7 +90,7 @@ def generate_pin_vectors(pin_alice: int, pin_bob: int, filename: str, bit_width:
 
 if __name__ == "__main__":
     import os
-    os.makedirs("tb", exist_ok=True)
-    generate_pin_vectors(0x123456, 0x123456, "tb/test_vector_match.hex", bit_width=24)
-    generate_pin_vectors(0x123456, 0x123457, "tb/test_vector_mismatch.hex", bit_width=24)
-    print("Test vectors berhasil digenerate di folder tb/.")
+    os.makedirs("test", exist_ok=True)
+    generate_pin_vectors(0x123456, 0x123456, "test/test_vector_match.hex", bit_width=24)
+    generate_pin_vectors(0x123456, 0x123457, "test/test_vector_mismatch.hex", bit_width=24)
+    print("Test vectors berhasil digenerate di folder test/.")

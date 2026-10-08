@@ -162,12 +162,12 @@ module tb_garblechip_top;
         $display("=======================================================");
 
         // 1. Jalankan pengujian MATCH (PIN Alice = PIN Bob = 0x123456)
-        run_test_vector_file("tb/test_vector_match.hex", 1'b1);
+        run_test_vector_file("test/test_vector_match.hex", 1'b1);
 
         #100;
 
         // 2. Jalankan pengujian MISMATCH (PIN Alice = 0x123456, PIN Bob = 0x123457)
-        run_test_vector_file("tb/test_vector_mismatch.hex", 1'b0);
+        run_test_vector_file("test/test_vector_mismatch.hex", 1'b0);
 
         #100;
         $display("\n=======================================================");

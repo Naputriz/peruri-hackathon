@@ -1,55 +1,35 @@
 // ============================================================================
-// File: garblechip_top.v
+// File: src/garblechip_top.v
 // Module: garblechip_top
 // Description: Top-Level Synthesizable IP Core GarbleChip
 //              Mengintegrasikan FSM Evaluator, SHA-256 Iterative Core,
-//              Free-XOR Unit, dan Wire Label Scratchpad RAM.
-//              100% Universal Verilog (Verilog-1995, 2001, 2005, SystemVerilog)
+//              Free-XOR Unit, dan Sliding Wire Window Scratchpad RAM.
+//              Target: Terasic DE10-Nano (Cyclone V SoC 5CSEBA6U23I7)
 // ============================================================================
 
 `timescale 1ns / 1ps
 
 module garblechip_top (
-    clk,
-    rst_n,
-    cmd_valid,
-    cmd_ready,
-    cmd_opcode,
-    cmd_wire_out,
-    cmd_wire_in1,
-    cmd_wire_in2,
-    cmd_gate_id,
-    cmd_data_t0,
-    cmd_data_t1,
-    status_busy,
-    status_done,
-    status_match,
-    total_cycles
-);
-    input          clk;
-    input          rst_n;
+    input  wire         clk,
+    input  wire         rst_n,
 
     // Antarmuka Streaming Perintah
-    input          cmd_valid;
-    output         cmd_ready;
-    wire           cmd_ready;
-    input  [7:0]   cmd_opcode;      // 0x01: LOAD, 0x02: XOR, 0x03: AND, 0xFF: FINISH
-    input  [7:0]   cmd_wire_out;
-    input  [7:0]   cmd_wire_in1;
-    input  [7:0]   cmd_wire_in2;
-    input  [31:0]  cmd_gate_id;
-    input  [127:0] cmd_data_t0;
-    input  [127:0] cmd_data_t1;
+    input  wire         cmd_valid,
+    output wire         cmd_ready,
+    input  wire [7:0]   cmd_opcode,      // 0x01: LOAD, 0x02: XOR, 0x03: AND, 0xFF: FINISH
+    input  wire [7:0]   cmd_wire_out,
+    input  wire [7:0]   cmd_wire_in1,
+    input  wire [7:0]   cmd_wire_in2,
+    input  wire [31:0]  cmd_gate_id,
+    input  wire [127:0] cmd_data_t0,
+    input  wire [127:0] cmd_data_t1,
 
     // Status & Indikator On-Board (LED DE10-Nano)
-    output         status_busy;
-    wire           status_busy;
-    output         status_done;
-    wire           status_done;
-    output         status_match;
-    wire           status_match;
-    output [31:0]  total_cycles;
-    wire   [31:0]  total_cycles;
+    output wire         status_busy,
+    output wire         status_done,
+    output wire         status_match,
+    output wire [31:0]  total_cycles
+);
 
     // Kawat Interkoneksi SHA-256
     wire         sha_start;
@@ -58,7 +38,7 @@ module garblechip_top (
     wire         sha_done;
     wire [255:0] sha_digest;
 
-    // Kawat Interkoneksi RAM
+    // Kawat Interkoneksi Sliding Wire Window RAM
     wire         ram_we;
     wire [7:0]   ram_wr_addr;
     wire [127:0] ram_wr_data;
@@ -72,8 +52,8 @@ module garblechip_top (
     wire [127:0] xor_in_b;
     wire [127:0] xor_out;
 
-    // 1. Instansiasi Scratchpad RAM Label Kawat
-    wire_label_ram u_wire_ram (
+    // 1. Instansiasi Scratchpad Sliding Wire Window RAM (M10K BRAM)
+    sliding_wire_window_ram u_wire_ram (
         .clk       (clk),
         .we        (ram_we),
         .wr_addr   (ram_wr_addr),
@@ -92,7 +72,7 @@ module garblechip_top (
     );
 
     // 3. Instansiasi SHA-256 Iterative Core PRF Engine (64 siklus)
-    sha256_iterative_core u_sha256 (
+    sha256_core_iterative u_sha256 (
         .clk       (clk),
         .rst_n     (rst_n),
         .start     (sha_start),

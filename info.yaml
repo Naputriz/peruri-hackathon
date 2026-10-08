@@ -1,0 +1,6 @@
+# Project metadata for Chip Merah Putih Peruri Hackathon 2026
+project:
+  name: GarbleChip
+  track: 02 - Hardware Cryptography Accelerator
+  top_module: garblechip
+  target: Terasic DE10-Nano (Intel Cyclone V SoC 5CSEBA6U23I7)

@@ -7,7 +7,7 @@
 
 > **Kategori Lomba:** Track 02 — Hardware Cryptography Accelerator  
 > **Platform Target:** Terasic DE10-Nano (Intel Cyclone V SoC 5CSEBA6U23I7) & Sandbox Chip Merah Putih Peruri  
-> **Institusi:** Departemen Teknik Elektro, Fakultas Teknik, Universitas Indonesia (2026)  
+> **Institusi:** Departemen Teknik Elektro, Fakultas Teknik, Universitas Indonesia, Depok (2026)  
 > **Studi Kasus:** Private PIN Verification via Secure 2-Party Computation (2PC / MPC)
 
 ---
@@ -23,25 +23,22 @@
 
 ---
 
-## 📌 1. Latar Belakang & Ringkasan Ide
+## 📌 1. Latar Belakang & Ringkasan Ide (Executive Summary)
 
-Komputasi multi-pihak aman (*Secure Multi-Party Computation* / MPC) memungkinkan dua entitas (misalnya: Bank dan Nasabah, atau Server Identitas PERURI dan Mesin EDC / Smart Terminal) memproses data bersama tanpa mengekspos data rahasia masing-masing. Protokol paling teruji untuk keperluan ini adalah **Yao's Garbled Circuits (GC)**.
+### 1.1. Problem Statement
+Kebutuhan komputasi kolaboratif tanpa membuka data rahasia masing-masing pihak (*privacy-preserving computation*) meningkat pesat, seperti verifikasi PIN terdistribusi tanpa kebocoran kredensial. *Secure Two-Party Computation* (2PC) berbasis **Yao's Garbled Circuits (GC)** adalah solusi terpercaya. Namun, evaluasi GC pada perangkat lunak membebani CPU secara masif. Arsitektur hardware konvensional rentan terhadap *memory explosion* karena memuat seluruh gerbang logika kombinasi sekaligus (*combinational netlist*), menghabiskan gigabytes RAM.
 
-Namun, evaluasi sirkuit garbled di perangkat lunak (*software*) memiliki hambatan performa kritis (*cryptographic bottleneck*):
-- Setiap gerbang logika non-XOR (seperti AND) membutuhkan komputasi hash kriptografis berulang.
-- Arsitektur konvensional mengalami *memory explosion* karena memuat seluruh kombinasi netlist (gigabytes RAM).
-
-### 💡 Solusi yang Diusulkan: GarbleChip
+### 1.2. Proposed Solution: GarbleChip
 GarbleChip mengadopsi pendekatan **Sequential Circuit Garbling** (terinspirasi dari konsep TinyGarble):
-1. **Finite State Machine with Datapath (FSMD)**: Sirkuit disekuensialisasi sehingga memori on-chip FPGA hanya perlu menyimpan label kawat yang sedang aktif (*cut-width*).
-2. **Sliding Wire Window Scratchpad**: Menjaga kebutuhan BRAM hanya beberapa kilobyte (<3.5 KB) alih-alih gigabytes.
-3. **Hardware SHA-256 PRF Engine**: Mesin hashing iteratif 512-bit (64 siklus) hemat area sesuai standar NIST FIPS 180-4. Input PRF (128-bit wire label + 32-bit Gate ID = 160-bit) muat dalam tepat **1 blok 512-bit**, mengeliminasi overhead multi-block hashing.
-4. **Free-XOR Unit (0-Cycle Latency)**: Gerbang XOR dievaluasi seketika pada jalur kombinasional tanpa komputasi kriptografis menggunakan teknik Kolesnikov & Schneider.
-5. **Avalon-MM Streaming RX Bridge**: Antarmuka streaming berkecepatan tinggi yang menghubungkan ARM Cortex-A9 (HPS) dan FPGA Fabric pada DE10-Nano.
+1. **Finite State Machine with Datapath (FSMD):** Algoritma dikonversi menjadi FSMD kompak. Memori FPGA hanya menyimpan label kawat yang sedang aktif (*cut-width*), dan register D Flip-Flop membawa label kawat antar siklus clock tanpa beban kriptografi tambahan.
+2. **Sliding Wire Window Architecture:** Scratchpad RAM on-chip hanya menyimpan *live wires*, menjaga memori tetap statis (hanya beberapa kilobyte BRAM M10K) tanpa terpengaruh kedalaman sirkuit.
+3. **Hardware SHA-256 PRF Engine:** Menggunakan SHA-256 untuk evaluasi Half-Gates. Input 160-bit (label kawat 128-bit + Gate ID 32-bit) muat dalam tepat **1 blok kompresi 512-bit** standar NIST FIPS 180-4, beroperasi tepat **64 siklus clock** per dekripsi gerbang AND.
+4. **Free-XOR Unit (0 Siklus):** Gerbang XOR dievaluasi seketika pada jalur kombinasional tanpa komputasi hash kriptografis menggunakan teknik Kolesnikov & Schneider.
+5. **HPS-FPGA Co-Design (DE10-Nano):** ARM Cortex-A9 (HPS) bertindak sebagai Garbler yang menyiapkan dan mengalirkan data sirkuit, sedangkan FPGA Fabric bertindak sebagai Hardware Evaluator berkecepatan tinggi melalui antarmuka Avalon-MM.
 
 ---
 
-## 🏗️ 2. Arsitektur Sistem
+## 🏗️ 2. Arsitektur Sistem & Modul RTL
 
 ```
                          [ ARM Cortex-A9 HPS / Avalon-MM Stream ]
@@ -51,23 +48,23 @@ GarbleChip mengadopsi pendekatan **Sequential Circuit Garbling** (terinspirasi d
 |                                GARBLECHIP IP CORE                                 |
 |                                                                                   |
 |   +--------------------------+              +---------------------------------+   |
-|   |                          |  wire read   |  Sliding Wire Window RAM        |   |
-|   |  Garble Gate FSM         |------------->|  (Dual-Port 128-bit Scratchpad) |   |
-|   |  Controller              |              +---------------------------------+   |
+|   |                          |  wire read   |  sliding_wire_window_ram.v      |   |
+|   |  garble_gate_fsm.v       |------------->|  (Dual-Port 128-bit Scratchpad) |   |
+|   |  Sequential Controller   |              +---------------------------------+   |
 |   |                          |                               |                    |
 |   |  - OP_LOAD (Wire Reg)    |                               | 128-bit label      |
 |   |  - OP_XOR  (Free-XOR)    |                               v                    |
 |   |  - OP_AND  (Half-Gates)  |              +---------------------------------+   |
-|   |  - OP_FIN  (PIN Verify)  |              | Free-XOR Evaluation Unit        |   |
-|   +--------------------------+              | (0-Cycle Combinational)         |   |
+|   |  - OP_FIN  (PIN Verify)  |              | free_xor_unit.v                 |   |
+|   +--------------------------+              | (0-Cycle Combinational Logic)   |   |
 |               |                             +---------------------------------+   |
 |               | 512-bit block                                |                    |
 |               v                                              | 128-bit label      |
 |   +----------------------------------------------------+     |                    |
-|   | Iterative SHA-256 Core (NIST FIPS 180-4)           |<----+                    |
-|   | - 64 Siklus Iteratif                               |                          |
-|   | - Bit-slicing Sigma / Gamma (Hemat Area ALM)       |                          |
-|   | - ROM Konstanta K (64 x 32-bit)                    |                          |
+|   | sha256_core_iterative.v (NIST FIPS 180-4)          |<----+                    |
+|   | - 64 Siklus Iteratif Datapath                      |                          |
+|   | - Message Schedule In-Place Rotation               |                          |
+|   | - sha256_k_constants.v (ROM K0..K63)               |                          |
 |   +----------------------------------------------------+                          |
 |                                                                                   |
 +===================================================================================+
@@ -76,99 +73,96 @@ GarbleChip mengadopsi pendekatan **Sequential Circuit Garbling** (terinspirasi d
                            [ Status Match (LED DE10-Nano) ]
 ```
 
+### Rincian Modul RTL (Sesuai Proposal Resmi Bagian 3.1):
+1. **`sha256_core_iterative.v`:** Diadaptasi dari baseline lomba (32-bit single-round datapath). Merotasi jadwal pesan secara in-place tanpa unrolling. Beroperasi tepat 64 siklus clock per dekripsi gerbang AND.
+2. **`garble_gate_fsm.v`:** Pengendali sekuensial yang mengelola bypass gerbang XOR (0-siklus), mengeksekusi operasi PRF/SHA-256 untuk gerbang AND, dan mengorkestrasi transfer label D-Flip-Flop (*state transfer*) untuk siklus $t+1$.
+3. **`sliding_wire_window_ram.v`:** Memori cache BRAM M10K yang menyimpan label kawat aktif berdasarkan jangkauan *cut-width*. Memastikan kebutuhan memori tetap statis dan terisolasi dari total kedalaman sirkuit.
+4. **`avalon_stream_rx.v`:** Antarmuka sinkronisasi DMA dengan domain clock HPS (ARM Cortex-A9).
+5. **`desain.v`:** Berkas mandiri (*single-file*) terintegrasi yang disesuaikan secara khusus untuk Web Simulator Sandbox Peruri.
+
 ---
 
 ## 📁 3. Struktur Direktori Repositori
 
-Struktur repositori telah distandarisasi ke format **`/src`** dan **`/test`** agar siap digunakan langsung di Web Sandbox Peruri (`chip.peruri.co.id/simulator`) maupun Quartus Prime / ModelSim:
+Sesuai ketentuan Sandbox Peruri, direktori diatur rapi menjadi **/src** dan **/test** (hanya **1 testbench tunggal** di `/test`):
 
 ```text
 peruri-hackathon/
-├── src/                                   # Kode Desain Verilog (Hardware RTL)
-│   ├── desain.v                           # [SANDBOX PERURI] File desain mandiri lengkap
-│   ├── garblechip_top.v                   # Top-level IP Core (Modular)
-│   ├── avalon_stream_rx.v                 # Avalon-MM Slave Interface (HPS-FPGA Bridge)
-│   ├── garble_gate_fsm.v                  # FSM Controller Evaluasi Sirkuit
-│   ├── sha256_core_iterative.v            # SHA-256 Iterative Engine 512-bit (64 Siklus)
+├── src/                                   # Berkas RTL Desain Perangkat Keras
+│   ├── desain.v                           # [SANDBOX PERURI] Desain tunggal lengkap (Siap Upload)
+│   ├── garblechip_top.v                   # Top-Level IP Core (Modular)
+│   ├── avalon_stream_rx.v                 # Antarmuka Avalon-MM Slave HPS-FPGA
+│   ├── garble_gate_fsm.v                  # FSM Controller Evaluator Sirkuit
+│   ├── sha256_core_iterative.v            # Core Iteratif SHA-256 512-bit (64 Siklus)
 │   ├── sha256_k_constants.v               # ROM Konstanta NIST K0..K63
 │   ├── sliding_wire_window_ram.v          # Scratchpad RAM Label Kawat 128-bit
-│   └── free_xor_unit.v                    # Unit Evaluasi Free-XOR (0-Cycle)
+│   └── free_xor_unit.v                    # Unit Evaluasi Free-XOR (0 Siklus)
 │
-├── test/                                  # Testbench & Vektor Pengujian
-│   ├── tb.v                               # [SANDBOX PERURI] Testbench mandiri lengkap
-│   ├── tb_garblechip_top.v                # Testbench modular membaca berkas hex
-│   ├── tb_garblechip_top_inline.v         # Testbench modular mandiri (inline stimulus)
-│   ├── tb_sha256_core.v                   # Testbench verifikasi NIST SHA-256 Core
+├── test/                                  # Berkas Testbench Pengujian
+│   └── tb.v                               # [SANDBOX PERURI] SATU-SATUNYA TESTBENCH (Siap Upload)
+│
+├── python/                                # Golden Model & Generator Vektor Uji
+│   ├── sha256_ref.py                      # Model referensi SHA-256 NIST FIPS 180-4
+│   ├── garbler_pin.py                     # Golden model Garbler & Evaluator (MPC)
+│   ├── generate_vectors.py                # Generator berkas instruksi sirkuit hex
+│   ├── rtl_simulator.py                   # Simulator siklus akurat perilaku RTL
 │   ├── test_vector_match.hex              # Vektor uji PIN MATCH (Alice == Bob)
 │   └── test_vector_mismatch.hex           # Vektor uji PIN MISMATCH (Alice != Bob)
 │
-├── python/                                # Software Stack & Golden Model
-│   ├── sha256_ref.py                      # Model referensi SHA-256 FIPS 180-4
-│   ├── garbler_pin.py                     # Golden model Garbler & Evaluator (MPC)
-│   ├── generate_vectors.py                # Generator vektor uji instruksi hex
-│   └── rtl_simulator.py                   # Simulator siklus akurat perilaku RTL
-│
-├── PERURI.md                              # Dokumen proposal lengkap tim
-├── PRE_PROPOSAL_HACKATHON_CHIP_2026.md    # Dokumen referensi proposal teknis
-└── README.md                              # Dokumentasi resmi proyek
+├── PERURI.md                              # Proposal Resmi Tim (Hackathon Chip 2026)
+├── PRE_PROPOSAL_HACKATHON_CHIP_2026.md    # Naskah Pra-Proposal Teknis
+└── README.md                              # Dokumentasi Resmi Proyek
 ```
 
 ---
 
-## ⚡ 4. Spesifikasi Performa & Estimasi Sumber Daya
+## ⚡ 4. Estimasi Penggunaan Sumber Daya FPGA (Terasic DE10-Nano)
 
-| Parameter | Spesifikasi | Keterangan |
-|---|---|---|
-| **Frekuensi Clock Target** | 50 MHz | Clock bawaan osilator DE10-Nano |
-| **Latensi Free-XOR Gate** | **0 Siklus** (0 ns) | Dievaluasi pada jalur kombinasional |
-| **Latensi Half-Gates AND** | **132 Siklus** (2.64 µs) | 2 kali SHA-256 (64 siklus) + 4 siklus FSM |
-| **Evaluasi PIN 24-bit Penuh** | **3,201 Siklus** (64.02 µs) | 24 gerbang AND + 47 gerbang XOR |
-| **Kebutuhan Sel Logika (ALMs)** | **~242 Cells** | Sangat hemat (<1% dari 41.910 ALMs Cyclone V) |
-| **Kebutuhan Memori On-Chip** | **34.816 bit** (~3.5 KB) | BRAM M10K (Sliding Wire RAM + K ROM) |
+Tabel berikut diambil langsung dari **Proposal Resmi Tim Bagian 3.1**:
+
+| Komponen Sumber Daya | Estimasi Penggunaan | Kapasitas DE10-Nano (Cyclone V) | Utilisasi (%) |
+| :---: | :---: | :---: | :---: |
+| **Logic Elements / LUT** | **~2,350 ALM** | 110,000 LEs / 41,910 ALMs | **< 6%** |
+| **Registers / Flip-Flops (FF)** | **~2,650 FF** | 415,000 | **< 1%** |
+| **Block RAM (M10K)** | **8 M10K (80 Kbits)** | 5,570 Kbits | **1.4%** |
+| **DSP Blocks** | **0 DSP** | 112 DSP | **0%** |
+
+### Target Metrik Keberhasilan:
+- **Akurasi Dekripsi:** 100% *bit-exact* fungsional terhadap model referensi.
+- **Konsumsi BRAM:** Murni statis dibatasi oleh *cut-width* kawat aktif sirkuit.
+- **Efisiensi Throughput:** Minimal **15x lebih cepat** dibandingkan eksekusi perangkat lunak murni pada ARM Cortex-A9.
 
 ---
 
-## 🚀 5. Panduan Simulasi di Sandbox Peruri (chip.peruri.co.id)
+## 🚀 5. Panduan Langsung Masuk Sandbox Peruri (chip.peruri.co.id)
 
-Platform sandbox Peruri menggunakan backend simulator berbasis Icarus Verilog dengan struktur direktori `/src` dan `/test`. Berkas di repositori ini dirancang 100% kompatibel tanpa error:
+Platform simulator Peruri mewajibkan berkas desain berada di `Folder src/` dan berkas testbench di `Folder test/`.
 
-### Langkah Penggunaan:
-1. **Buka Simulator Peruri:** Masuk ke menu simulator sirkuit di [chip.peruri.co.id](https://chip.peruri.co.id).
-2. **Berkas Desain (`/src`):**
-   - Buka berkas `src/desain.v` pada editor sandbox (atau buat jika belum ada).
-   - Salin dan tempel seluruh isi dari [`src/desain.v`](src/desain.v) repositori ini.
-3. **Berkas Testbench (`/test`):**
-   - Buka berkas `test/tb.v` pada editor sandbox (atau buat jika belum ada).
-   - Salin dan tempel seluruh isi dari [`test/tb.v`](test/tb.v) repositori ini.
+### Langkah Pengujian di Sandbox:
+1. **Buka Simulator Peruri:** Buka [chip.peruri.co.id/simulator](https://chip.peruri.co.id).
+2. **Salin Kode Desain:**
+   - Buka berkas `desain.v` pada **`Folder src/`**.
+   - Salin dan tempel seluruh isi dari [`src/desain.v`](src/desain.v).
+3. **Salin Kode Testbench:**
+   - Buka berkas `tb.v` pada **`Folder test/`**.
+   - Salin dan tempel seluruh isi dari [`test/tb.v`](test/tb.v).
 4. **Jalankan Sintesis:**
-   - Klik tombol **`Jalankan sintesis`**. Desain akan selesai disintesis dengan status sukses.
+   - Klik **`Jalankan sintesis`** &rarr; Desain akan tersintesis mulus (status hijau, 0 error).
 5. **Jalankan Simulasi:**
-   - Klik tombol **`Jalankan simulasi`**. Hasil pengujian verifikasi PIN dan waveform VCD interaktif akan langsung ditampilkan.
+   - Klik **`Jalankan simulasi`** &rarr; Hasil verifikasi private PIN match dan waveform VCD langsung ditampilkan.
 
 ---
 
-## 🧪 6. Simulasi Software & Verifikasi Mandiri
+## 🧪 6. Simulasi Perangkat Lunak (Python Golden Model)
 
-### A. Uji Golden Model Python & Simulator RTL Siklus-Akurat
 ```bash
-# Uji model referensi Garbler dan Evaluator (Half-Gates + Free-XOR)
+# 1. Jalankan verifikasi matematika MPC Garbler & Evaluator
 python python/garbler_pin.py
 
-# Generate vektor uji hex terbaru
+# 2. Generate ulang vektor instruksi uji
 python python/generate_vectors.py
 
-# Uji simulator siklus akurat RTL
+# 3. Jalankan simulasi siklus akurat RTL
 python python/rtl_simulator.py
 ```
-*Hasil:* 100% Bit-exact match dengan spesifikasi sirkuit garbled dan latensi 3.201 siklus.
-
-### B. Simulasi Verilog Menggunakan Icarus Verilog
-```bash
-# Simulasi paket modular mandiri
-iverilog -o sim_garblechip src/*.v test/tb_garblechip_top_inline.v
-vvp sim_garblechip
-
-# Atau simulasi paket sandbox tunggal
-iverilog -o sim_sandbox src/desain.v test/tb.v
-vvp sim_sandbox
-```
+*Hasil:* Seluruh pengujian 100% BIT-EXACT PASSED (3.201 siklus clock, latensi 64.02 µs pada 50 MHz).

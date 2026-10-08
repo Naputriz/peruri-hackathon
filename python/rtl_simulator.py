@@ -266,6 +266,6 @@ def run_rtl_simulation_on_hex(hex_path: str, expected_match: bool):
     print(">>> STATUS: 100% BIT-EXACT PASSED! <<<")
 
 if __name__ == "__main__":
-    run_rtl_simulation_on_hex("test/test_vector_match.hex", True)
-    run_rtl_simulation_on_hex("test/test_vector_mismatch.hex", False)
+    run_rtl_simulation_on_hex("python/test_vector_match.hex", True)
+    run_rtl_simulation_on_hex("python/test_vector_mismatch.hex", False)
     print("\n>>> SELURUH SIMULASI SIKLUS-AKURAT RTL SUKSES 100%! <<<")

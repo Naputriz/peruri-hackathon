@@ -102,6 +102,20 @@ module tb_garblechip;
     #10 start = 0;
     #40;
 
+    $display("\n=======================================================");
+    $display("   GARBLECHIP HARDWARE ACCELERATOR SIMULATION RESULT   ");
+    $display("   Platform: Peruri Sandbox / Terasic DE10-Nano SoC    ");
+    $display("=======================================================");
+    $display(" Status Ready : %b | Done : %b", ready, done);
+    $display(" Status Match : %b (Ekspektasi: 1'b1 - PIN MATCH)", match);
+    $display(" Total Siklus : %0d siklus clock", timer);
+    if (match === 1'b1) begin
+      $display(" >>> HASIL: PASSED! Private PIN Verification Berhasil! <<<");
+    end else begin
+      $display(" >>> HASIL: FAILED! <<<");
+    end
+    $display("=======================================================\n");
+
     #200;
     $finish;
   end

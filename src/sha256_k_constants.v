@@ -1,7 +1,7 @@
 // ============================================================================
-// File: sha256_k_constants.v
+// File: src/sha256_k_constants.v
 // Module: sha256_k_constants
-// Description: ROM 64 konstanta 32-bit (K0..K63) sesuai standar NIST FIPS 180-4
+// Description: ROM of 64 32-bit constants (K0..K63) per NIST FIPS 180-4 standard
 //              100% Universal Verilog (Verilog-1995, 2001, 2005, SystemVerilog)
 // ============================================================================
 
@@ -84,5 +84,4 @@ module sha256_k_constants (
             default: k_out = 32'h00000000;
         endcase
     end
-
 endmodule

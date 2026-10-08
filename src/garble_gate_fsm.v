@@ -1,8 +1,8 @@
 // ============================================================================
-// File: garble_gate_fsm.v
+// File: src/garble_gate_fsm.v
 // Module: garble_gate_fsm
-// Description: FSM Controller untuk Evaluasi Yao's Garbled Circuit
-//              Mendukung Free-XOR (0-cycle) & Half-Gates AND (SHA-256 PRF)
+// Description: FSM Controller for Yao's Garbled Circuit Evaluation
+//              Supports Free-XOR (0-cycle) & Half-Gates AND (SHA-256 PRF)
 //              100% Universal Verilog (Verilog-1995, 2001, 2005, SystemVerilog)
 // ============================================================================
 
@@ -43,7 +43,7 @@ module garble_gate_fsm (
     input          clk;
     input          rst_n;
 
-    // Antarmuka Perintah Gerbang
+    // Gate Command Interface
     input          cmd_valid;
     output         cmd_ready;
     reg            cmd_ready;
@@ -52,10 +52,10 @@ module garble_gate_fsm (
     input  [7:0]   cmd_wire_in1;
     input  [7:0]   cmd_wire_in2;
     input  [31:0]  cmd_gate_id;
-    input  [127:0] cmd_data_t0;     // Label untuk LOAD / TG untuk AND / Exp label untuk FINISH
-    input  [127:0] cmd_data_t1;     // TE untuk AND
+    input  [127:0] cmd_data_t0;     // Wire label for LOAD / TG for AND / Exp label for FINISH
+    input  [127:0] cmd_data_t1;     // TE for AND
 
-    // Status & Hasil Evaluasi
+    // Status & Evaluation Results
     output         eval_busy;
     reg            eval_busy;
     output         eval_done;
@@ -65,7 +65,7 @@ module garble_gate_fsm (
     output [31:0]  cycle_counter;
     reg    [31:0]  cycle_counter;
 
-    // Antarmuka SHA-256 Core
+    // SHA-256 Core Interface
     output         sha_start;
     reg            sha_start;
     output [511:0] sha_block;
@@ -74,7 +74,7 @@ module garble_gate_fsm (
     input          sha_done;
     input  [255:0] sha_digest;
 
-    // Antarmuka Wire Label RAM
+    // Wire Label RAM Interface
     output         ram_we;
     reg            ram_we;
     output [7:0]   ram_wr_addr;
@@ -88,7 +88,7 @@ module garble_gate_fsm (
     reg    [7:0]   ram_rd_addr_b;
     input  [127:0] ram_rd_data_b;
 
-    // Antarmuka Free-XOR Unit
+    // Free-XOR Unit Interface
     output [127:0] xor_in_a;
     output [127:0] xor_in_b;
     input  [127:0] xor_out;
@@ -113,7 +113,7 @@ module garble_gate_fsm (
 
     reg [3:0] state;
 
-    // Register internal penampung gerbang saat ini
+    // Internal registers holding current gate parameters
     reg [7:0]   reg_out_id;
     reg [7:0]   reg_in1_id;
     reg [7:0]   reg_in2_id;
@@ -121,13 +121,13 @@ module garble_gate_fsm (
     reg [127:0] reg_t0;
     reg [127:0] reg_t1;
 
-    // Register penyimpan label kawat A dan B yang dibaca
+    // Registers storing fetched wire labels A and B
     reg [127:0] label_a_reg;
     reg [127:0] label_b_reg;
     reg [127:0] wg_reg;
     reg [127:0] we_reg;
 
-    // Koneksi langsung Free-XOR
+    // Direct connections to Free-XOR unit
     assign xor_in_a = ram_rd_data_a;
     assign xor_in_b = ram_rd_data_b;
 
@@ -157,7 +157,7 @@ module garble_gate_fsm (
             wg_reg        <= 128'd0;
             we_reg        <= 128'd0;
         end else begin
-            // Hitung siklus clock saat sedang sibuk (benchmarking)
+            // Count clock cycles while busy (benchmarking)
             if (eval_busy && !eval_done) begin
                 cycle_counter <= cycle_counter + 32'd1;
             end
@@ -178,7 +178,7 @@ module garble_gate_fsm (
                         reg_t0      <= cmd_data_t0;
                         reg_t1      <= cmd_data_t1;
 
-                        // Siapkan alamat baca RAM untuk input kawat
+                        // Set RAM read addresses for wire inputs
                         ram_rd_addr_a <= cmd_wire_in1;
                         ram_rd_addr_b <= cmd_wire_in2;
 
@@ -197,7 +197,7 @@ module garble_gate_fsm (
                     end
                 end
 
-                // 1. Eksekusi LOAD_WIRE
+                // 1. Execute LOAD_WIRE
                 ST_LOAD_EXEC: begin
                     ram_we      <= 1'b1;
                     ram_wr_addr <= reg_out_id;
@@ -207,7 +207,7 @@ module garble_gate_fsm (
                     state       <= ST_IDLE;
                 end
 
-                // 2. Eksekusi EVAL_XOR (Free-XOR, 0 Siklus)
+                // 2. Execute EVAL_XOR (Free-XOR, 0 Cycles)
                 ST_XOR_EXEC: begin
                     ram_we      <= 1'b1;
                     ram_wr_addr <= reg_out_id;
@@ -217,7 +217,7 @@ module garble_gate_fsm (
                     state       <= ST_IDLE;
                 end
 
-                // 3. Dispatch untuk Evaluasi Half-Gates AND
+                // 3. Dispatch for Half-Gates AND Evaluation
                 ST_DISPATCH: begin
                     label_a_reg <= ram_rd_data_a;
                     label_b_reg <= ram_rd_data_b;
@@ -278,7 +278,7 @@ module garble_gate_fsm (
                     end
                 end
 
-                // 6. Finalisasi Half-Gates AND: W_out = W_G ^ W_E
+                // 6. Half-Gates AND Finalization: W_out = W_G ^ W_E
                 ST_AND_FINALIZE: begin
                     ram_we      <= 1'b1;
                     ram_wr_addr <= reg_out_id;
@@ -288,7 +288,7 @@ module garble_gate_fsm (
                     state       <= ST_IDLE;
                 end
 
-                // 7. Selesai Evaluasi Keseluruhan (FINISH)
+                // 7. Complete Circuit Evaluation (FINISH)
                 ST_DONE: begin
                     eval_done    <= 1'b1;
                     eval_busy    <= 1'b0;

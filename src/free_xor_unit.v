@@ -1,8 +1,8 @@
 // ============================================================================
-// File: free_xor_unit.v
+// File: src/free_xor_unit.v
 // Module: free_xor_unit
-// Description: Unit Evaluasi Free-XOR (Kolesnikov & Schneider, 2008)
-//              Mengevaluasi gerbang XOR dalam 0-cycle kombinasional (128-bit)
+// Description: Free-XOR Evaluation Unit (Kolesnikov & Schneider, 2008)
+//              Evaluates XOR gates with 0-cycle combinational logic (128-bit)
 //              100% Universal Verilog (Verilog-1995, 2001, 2005, SystemVerilog)
 // ============================================================================
 
@@ -17,7 +17,7 @@ module free_xor_unit (
     input  [127:0] label_b;
     output [127:0] label_out;
 
-    // Free-XOR: W_c = W_a ^ W_b murni kombinasional tanpa biaya hash / crypto
+    // Free-XOR: W_c = W_a ^ W_b purely combinational without cryptographic hash cost
     assign label_out = label_a ^ label_b;
 
 endmodule

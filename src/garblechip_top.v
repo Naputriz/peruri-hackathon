@@ -2,9 +2,9 @@
 // File: src/garblechip_top.v
 // Module: garblechip_top
 // Description: Top-Level Synthesizable IP Core GarbleChip
-//              Mengintegrasikan FSM Evaluator, SHA-256 Iterative Core,
-//              Free-XOR Unit, dan Sliding Wire Window Scratchpad RAM.
-//              Target: Terasic DE10-Nano (Cyclone V SoC 5CSEBA6U23I7)
+//              Integrates Circuit FSM Evaluator, Iterative SHA-256 Core,
+//              Free-XOR Unit, and Sliding Wire Window Scratchpad RAM.
+//              Target Platform: Terasic DE10-Nano (Cyclone V SoC 5CSEBA6U23I7)
 // ============================================================================
 
 `timescale 1ns / 1ps
@@ -13,7 +13,7 @@ module garblechip_top (
     input  wire         clk,
     input  wire         rst_n,
 
-    // Antarmuka Streaming Perintah
+    // Command Streaming Interface
     input  wire         cmd_valid,
     output wire         cmd_ready,
     input  wire [7:0]   cmd_opcode,      // 0x01: LOAD, 0x02: XOR, 0x03: AND, 0xFF: FINISH
@@ -24,21 +24,21 @@ module garblechip_top (
     input  wire [127:0] cmd_data_t0,
     input  wire [127:0] cmd_data_t1,
 
-    // Status & Indikator On-Board (LED DE10-Nano)
+    // On-board Status & Benchmark Indicator (DE10-Nano LEDs)
     output wire         status_busy,
     output wire         status_done,
     output wire         status_match,
     output wire [31:0]  total_cycles
 );
 
-    // Kawat Interkoneksi SHA-256
+    // SHA-256 Interconnect Wires
     wire         sha_start;
     wire [511:0] sha_block;
     wire         sha_ready;
     wire         sha_done;
     wire [255:0] sha_digest;
 
-    // Kawat Interkoneksi Sliding Wire Window RAM
+    // Sliding Wire Window RAM Interconnect Wires
     wire         ram_we;
     wire [7:0]   ram_wr_addr;
     wire [127:0] ram_wr_data;
@@ -47,12 +47,12 @@ module garblechip_top (
     wire [7:0]   ram_rd_addr_b;
     wire [127:0] ram_rd_data_b;
 
-    // Kawat Interkoneksi Free-XOR
+    // Free-XOR Interconnect Wires
     wire [127:0] xor_in_a;
     wire [127:0] xor_in_b;
     wire [127:0] xor_out;
 
-    // 1. Instansiasi Scratchpad Sliding Wire Window RAM (M10K BRAM)
+    // 1. Sliding Wire Window Scratchpad RAM Instance (M10K BRAM)
     sliding_wire_window_ram u_wire_ram (
         .clk       (clk),
         .we        (ram_we),
@@ -64,14 +64,14 @@ module garblechip_top (
         .rd_data_b (ram_rd_data_b)
     );
 
-    // 2. Instansiasi Unit Logika Free-XOR (0-cycle)
+    // 2. Free-XOR Logic Unit Instance (0-cycle combinational)
     free_xor_unit u_xor_unit (
         .label_a   (xor_in_a),
         .label_b   (xor_in_b),
         .label_out (xor_out)
     );
 
-    // 3. Instansiasi SHA-256 Iterative Core PRF Engine (64 siklus)
+    // 3. Iterative SHA-256 Core PRF Engine Instance (64 cycles)
     sha256_core_iterative u_sha256 (
         .clk       (clk),
         .rst_n     (rst_n),
@@ -82,7 +82,7 @@ module garblechip_top (
         .digest    (sha_digest)
     );
 
-    // 4. Instansiasi FSM Controller Evaluator Sirkuit
+    // 4. Circuit Evaluator FSM Controller Instance
     garble_gate_fsm u_fsm (
         .clk           (clk),
         .rst_n         (rst_n),

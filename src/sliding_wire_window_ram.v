@@ -1,9 +1,9 @@
 // ============================================================================
 // File: src/sliding_wire_window_ram.v
 // Module: sliding_wire_window_ram
-// Description: Memori Scratchpad Dual-Port 128-bit berbasis BRAM M10K
-//              Mengimplementasikan Sliding Wire Window (Mo et al., ISCA 2023)
-//              Hanya menyimpan kawat aktif dalam jangkauan cut-width
+// Description: Dual-Port 128-bit Scratchpad Memory based on M10K BRAM
+//              Implements Sliding Wire Window Architecture (Mo et al., ISCA 2023)
+//              Only stores active wires within the circuit cut-width
 //              100% Universal Verilog (Verilog-1995, 2001, 2005, SystemVerilog)
 // ============================================================================
 
@@ -19,10 +19,10 @@ module sliding_wire_window_ram (
     input  wire [7:0]   rd_addr_b,
     output wire [127:0] rd_data_b
 );
-    parameter DEPTH = 256;      // Kapasitas jendela kawat (cut-width)
-    parameter WIDTH = 128;      // Ukuran label kawat (128-bit)
+    parameter DEPTH = 256;      // Capacity of wire window (cut-width)
+    parameter WIDTH = 128;      // Wire label width (128-bit)
 
-    // Array memori internal scratchpad M10K
+    // Internal M10K scratchpad memory array
     reg [WIDTH-1:0] mem [0:DEPTH-1];
 
     always @(posedge clk) begin
@@ -31,7 +31,7 @@ module sliding_wire_window_ram (
         end
     end
 
-    // Pembacaan kombinasi dual-port untuk throughput evaluasi 0-stalls
+    // Combinational dual-port read for zero-stall evaluation throughput
     assign rd_data_a = mem[rd_addr_a];
     assign rd_data_b = mem[rd_addr_b];
 

@@ -1,9 +1,9 @@
 // ============================================================================
 // File: src/sha256_core_iterative.v
 // Module: sha256_core_iterative
-// Description: Core SHA-256 1-Blok 512-bit Iteratif 64-Siklus Hemat Area
-//              Standar NIST FIPS 180-4 untuk GarbleChip PRF Engine
-//              Zero Loop (Unrolled Shift Pipeline), 100% Robust
+// Description: Area-Efficient 64-Cycle Iterative SHA-256 512-bit Core
+//              NIST FIPS 180-4 Standard for GarbleChip PRF Engine
+//              Zero Loop (Unrolled Shift Pipeline), 100% Robust Verilog
 // ============================================================================
 
 `timescale 1ns / 1ps
@@ -12,7 +12,7 @@ module sha256_core_iterative (
     input  wire         clk,
     input  wire         rst_n,
     input  wire         start,
-    input  wire [511:0] block_512,  // 16 kata 32-bit (M0..M15, MSB first)
+    input  wire [511:0] block_512,  // 16 32-bit words (M0..M15, MSB first)
     output reg          ready,
     output reg          done,
     output reg  [255:0] digest      // H0..H7 (256-bit)
@@ -38,33 +38,33 @@ module sha256_core_iterative (
     // Working variables A..H
     reg [31:0] a, b, c, d, e, f, g, h;
 
-    // Shift register array untuk Message Schedule W (16 x 32-bit)
+    // Shift register array for Message Schedule W (16 x 32-bit)
     reg [31:0] w0, w1, w2, w3, w4, w5, w6, w7;
     reg [31:0] w8, w9, w10, w11, w12, w13, w14, w15;
 
-    // ROM Konstanta K
+    // ROM constants K
     wire [31:0] k_cur;
     sha256_k_constants u_k_constants (
         .round_idx (round_cnt),
         .k_out     (k_cur)
     );
 
-    // Fungsi Logika Kombinasional NIST FIPS 180-4
+    // NIST FIPS 180-4 Combinational Logic Functions
     wire [31:0] ch_val   = (e & f) ^ (~e & g);
     wire [31:0] maj_val  = (a & b) ^ (a & c) ^ (b & c);
 
-    // NIST Sigma & Gamma via Bit-Slicing Murni
+    // NIST Sigma & Gamma via Bit-Slicing
     wire [31:0] s0_val   = {a[1:0], a[31:2]} ^ {a[12:0], a[31:13]} ^ {a[21:0], a[31:22]};
     wire [31:0] s1_val   = {e[5:0], e[31:6]} ^ {e[10:0], e[31:11]} ^ {e[24:0], e[31:25]};
 
     wire [31:0] gam0_val = {w1[6:0], w1[31:7]}   ^ {w1[17:0], w1[31:18]}   ^ (w1 >> 3);
     wire [31:0] gam1_val = {w14[16:0], w14[31:17]} ^ {w14[18:0], w14[31:19]} ^ (w14 >> 10);
 
-    // Nilai W saat ini dan W baru untuk pergeseran shift register
+    // Current W value and new W value for shift register update
     wire [31:0] w_cur = w0;
     wire [31:0] w_new = w0 + gam0_val + w9 + gam1_val;
 
-    // Kalkulasi Round T1 & T2
+    // Round computation T1 & T2
     wire [31:0] t1 = h + s1_val + ch_val + k_cur + w_cur;
     wire [31:0] t2 = s0_val + maj_val;
 
@@ -89,11 +89,11 @@ module sha256_core_iterative (
                         ready     <= 1'b0;
                         state     <= S_ROUNDS;
                         round_cnt <= 6'd0;
-                        // Inisialisasi register kerja A..H
+                        // Initialize working registers A..H
                         a <= H0_INIT; b <= H1_INIT; c <= H2_INIT; d <= H3_INIT;
                         e <= H4_INIT; f <= H5_INIT; g <= H6_INIT; h <= H7_INIT;
 
-                        // Muat 16 kata pertama (512-bit)
+                        // Load initial 16 words (512-bit block)
                         w0  <= block_512[511:480]; w1  <= block_512[479:448];
                         w2  <= block_512[447:416]; w3  <= block_512[415:384];
                         w4  <= block_512[383:352]; w5  <= block_512[351:320];
@@ -108,7 +108,7 @@ module sha256_core_iterative (
                 end
 
                 S_ROUNDS: begin
-                    // Perbarui variabel kompresi A..H
+                    // Update compression variables A..H
                     h <= g;
                     g <= f;
                     f <= e;
@@ -118,7 +118,7 @@ module sha256_core_iterative (
                     b <= a;
                     a <= t1 + t2;
 
-                    // Pergeseran jendela message schedule (100% Unrolled, No Loop)
+                    // Shift message schedule window (100% Unrolled, No Loop)
                     w0  <= w1;  w1  <= w2;  w2  <= w3;  w3  <= w4;
                     w4  <= w5;  w5  <= w6;  w6  <= w7;  w7  <= w8;
                     w8  <= w9;  w9  <= w10; w10 <= w11; w11 <= w12;
@@ -132,7 +132,7 @@ module sha256_core_iterative (
                 end
 
                 S_FINALIZE: begin
-                    // Penjumlahan akhir dengan nilai awal (Davies-Meyer construction)
+                    // Final addition with initial hash values (Davies-Meyer construction)
                     digest <= {
                         (a + H0_INIT), (b + H1_INIT), (c + H2_INIT), (d + H3_INIT),
                         (e + H4_INIT), (f + H5_INIT), (g + H6_INIT), (h + H7_INIT)

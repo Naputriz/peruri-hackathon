@@ -1,9 +1,9 @@
 // ============================================================================
 // File: src/desain.v (Peruri Web Simulator Sandbox Target)
-// Proyek: GarbleChip — Hardware Cryptography Accelerator (Chip Merah Putih Peruri)
-// Modul: garblechip (Akselerator Garbled Circuit & SHA-256 PRF)
-// Format Sintaks: 100% Mengikuti Standar Resmi Peruri (Template lampu_lalu_lintas)
-// Karakteristik: Zero Nested Case, Zero Memory Array Error, Zero Loop For
+// Project: GarbleChip — Hardware Cryptography Accelerator (Chip Merah Putih Peruri)
+// Module: garblechip (Garbled Circuit & SHA-256 PRF Accelerator)
+// Syntax Standard: 100% Compliant with Official Peruri Template (lampu_lalu_lintas)
+// Characteristics: Zero Nested Case, Zero Memory Array Errors, Zero Loops
 // ============================================================================
 
 module garblechip (
@@ -11,27 +11,27 @@ module garblechip (
   input  wire rst_n,
   input  wire start,
   input  wire [1:0] opcode,        // 0: LOAD, 1: FREE-XOR, 2: AND (Half-Gate PRF), 3: VERIFY
-  input  wire [2:0] dst_id,        // Kawat tujuan (0..7)
-  input  wire [2:0] src1_id,       // Kawat sumber 1 (0..7)
-  input  wire [2:0] src2_id,       // Kawat sumber 2 (0..7)
-  input  wire [31:0] gate_id,      // ID Gerbang untuk Garbled Table Tweak
+  input  wire [2:0] dst_id,        // Destination wire ID (0..7)
+  input  wire [2:0] src1_id,       // Source wire 1 ID (0..7)
+  input  wire [2:0] src2_id,       // Source wire 2 ID (0..7)
+  input  wire [31:0] gate_id,      // Gate ID for Garbled Table Tweak
   input  wire [127:0] table_tg,    // Garbled Table Garbler (TG)
   input  wire [127:0] table_te,    // Garbled Table Evaluator (TE)
-  input  wire [127:0] in_data,     // Label kawat masukan (untuk LOAD / VERIFY)
+  input  wire [127:0] in_data,     // Input wire label (for LOAD / VERIFY)
   output reg  ready,
   output reg  busy,
   output reg  done,
-  output reg  match,               // 1 jika verifikasi PIN cocok (Private Match)
-  output reg  [127:0] out_label,   // Label kawat keluaran hasil evaluasi
-  output wire [31:0] timer         // Indikator siklus eksekusi (benchmark akselerasi)
+  output reg  match,               // 1 if private PIN verification matches
+  output reg  [127:0] out_label,   // Output wire label result
+  output wire [31:0] timer         // Execution cycle counter (performance benchmark)
 );
 
-  // 1. Deklarasi Register Internal (Semua di paling atas)
+  // 1. Internal Register Declarations (All declared at top)
   reg [3:0]  state;
   reg [31:0] count;
   assign timer = count;
 
-  // 8 Register Scratchpad Kawat 128-bit (Sliding Wire Window / Live Wires)
+  // 8 Scratchpad Wire Label Registers 128-bit (Sliding Wire Window / Live Wires)
   reg [127:0] w_label_0;
   reg [127:0] w_label_1;
   reg [127:0] w_label_2;
@@ -46,14 +46,14 @@ module garblechip (
   reg [127:0] wg;
   reg [127:0] we;
 
-  // Register SHA-256 Iterative Engine
+  // SHA-256 Iterative Engine Registers
   reg [5:0]  round_cnt;
   reg [31:0] a, b, c, d, e, f, g, h;
   reg [31:0] w0, w1, w2, w3, w4, w5, w6, w7;
   reg [31:0] w8, w9, w10, w11, w12, w13, w14, w15;
   reg [31:0] k_cur;
 
-  // 2. Deklarasi Konstanta FSM & Kriptografi
+  // 2. FSM & Cryptographic Constant Declarations
   localparam S_IDLE       = 4'd0,
              S_LOAD       = 4'd1,
              S_XOR        = 4'd2,
@@ -79,7 +79,7 @@ module garblechip (
              H6_INIT = 32'h1f83d9ab,
              H7_INIT = 32'h5be0cd19;
 
-  // 3. Wires Kombinasional SHA-256 (Dideklarasikan sebelum blok procedural)
+  // 3. SHA-256 Combinational Wires (Declared before procedural blocks)
   wire [31:0] ch_val   = (e & f) ^ (~e & g);
   wire [31:0] maj_val  = (a & b) ^ (a & c) ^ (b & c);
   wire [31:0] s0_val   = {a[1:0], a[31:2]} ^ {a[12:0], a[31:13]} ^ {a[21:0], a[31:22]};
@@ -91,7 +91,7 @@ module garblechip (
   wire [31:0] t2       = s0_val + maj_val;
   wire [127:0] sha_top128 = {(a + H0_INIT), (b + H1_INIT), (c + H2_INIT), (d + H3_INIT)};
 
-  // 4. ROM Konstanta K NIST SHA-256 (Blok Sekuensial Mandiri, Case Tunggal)
+  // 4. NIST SHA-256 K Constants ROM (Single Sequential Block, Single Case)
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       k_cur <= 32'h00000000;
@@ -166,7 +166,7 @@ module garblechip (
     end
   end
 
-  // 5. FSM Sekuensial Utama Evaluator (Case Tunggal case(state), Zero Nested Case)
+  // 5. Main Sequential Evaluator FSM (Single case(state), Zero Nested Case)
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       state      <= S_IDLE;
@@ -210,7 +210,7 @@ module garblechip (
             ready <= 1'b0;
             busy  <= 1'b1;
 
-            // Pemilihan la via if-else sekuensial (Bukan nested case)
+            // Sequential if-else multiplexer for la (avoids nested case)
             if (src1_id == 3'd0) la <= w_label_0;
             else if (src1_id == 3'd1) la <= w_label_1;
             else if (src1_id == 3'd2) la <= w_label_2;
@@ -220,7 +220,7 @@ module garblechip (
             else if (src1_id == 3'd6) la <= w_label_6;
             else la <= w_label_7;
 
-            // Pemilihan lb via if-else sekuensial (Bukan nested case)
+            // Sequential if-else multiplexer for lb (avoids nested case)
             if (src2_id == 3'd0) lb <= w_label_0;
             else if (src2_id == 3'd1) lb <= w_label_1;
             else if (src2_id == 3'd2) lb <= w_label_2;
@@ -230,7 +230,7 @@ module garblechip (
             else if (src2_id == 3'd6) lb <= w_label_6;
             else lb <= w_label_7;
 
-            // Transisi Opcode via if-else sekuensial (Bukan nested case)
+            // Sequential opcode branch (avoids nested case)
             if (opcode == OP_LOAD) state <= S_LOAD;
             else if (opcode == OP_XOR) state <= S_XOR;
             else if (opcode == OP_AND) state <= S_AND_FETCH;
@@ -239,7 +239,7 @@ module garblechip (
           end
         end
 
-        // 1. Muat Label Kawat Aktif (LOAD)
+        // 1. Load active wire label (LOAD)
         S_LOAD: begin
           if (dst_id == 3'd0) w_label_0 <= in_data;
           else if (dst_id == 3'd1) w_label_1 <= in_data;
@@ -255,7 +255,7 @@ module garblechip (
           state     <= S_IDLE;
         end
 
-        // 2. Evaluasi Free-XOR (1 Siklus Akselerasi Instan, 0 Operasi Kripto)
+        // 2. Free-XOR Evaluation (0-Cycle Cryptographic Operations)
         S_XOR: begin
           if (dst_id == 3'd0) w_label_0 <= la ^ lb;
           else if (dst_id == 3'd1) w_label_1 <= la ^ lb;
@@ -271,12 +271,12 @@ module garblechip (
           state     <= S_IDLE;
         end
 
-        // 3. Evaluasi Garbled AND (Half-Gates: Fetch)
+        // 3. Garbled AND Evaluation (Half-Gates: Fetch)
         S_AND_FETCH: begin
           state <= S_AND_INIT_A;
         end
 
-        // Inisialisasi SHA-256 untuk Garbler Hash H(la, gate_id)
+        // Initialize SHA-256 for Garbler Hash H(la, gate_id)
         S_AND_INIT_A: begin
           round_cnt <= 6'd0;
           a <= H0_INIT; b <= H1_INIT; c <= H2_INIT; d <= H3_INIT;
@@ -290,7 +290,7 @@ module garblechip (
           state <= S_AND_RND_A;
         end
 
-        // 64 Siklus SHA-256 Round Garbler
+        // 64 Cycles SHA-256 Garbler Round
         S_AND_RND_A: begin
           h <= g; g <= f; f <= e;
           e <= d + t1;
@@ -311,7 +311,7 @@ module garblechip (
           end
         end
 
-        // Inisialisasi SHA-256 untuk Evaluator Hash H(lb, gate_id)
+        // Initialize SHA-256 for Evaluator Hash H(lb, gate_id)
         S_AND_INIT_B: begin
           round_cnt <= 6'd0;
           a <= H0_INIT; b <= H1_INIT; c <= H2_INIT; d <= H3_INIT;
@@ -325,7 +325,7 @@ module garblechip (
           state <= S_AND_RND_B;
         end
 
-        // 64 Siklus SHA-256 Round Evaluator
+        // 64 Cycles SHA-256 Evaluator Round
         S_AND_RND_B: begin
           h <= g; g <= f; f <= e;
           e <= d + t1;
@@ -346,7 +346,7 @@ module garblechip (
           end
         end
 
-        // Finalisasi Half-Gate: Wc = Wg ^ We
+        // Half-Gate Finalization: Wc = Wg ^ We
         S_AND_FINISH: begin
           if (dst_id == 3'd0) w_label_0 <= wg ^ we;
           else if (dst_id == 3'd1) w_label_1 <= wg ^ we;
@@ -362,7 +362,7 @@ module garblechip (
           state     <= S_IDLE;
         end
 
-        // 4. Verifikasi PIN Match (Equality Comparator Output)
+        // 4. Private PIN Match Verification (Equality Comparator Output)
         S_VERIFY: begin
           match     <= (la == in_data);
           out_label <= la;

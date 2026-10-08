@@ -1,8 +1,8 @@
 // ============================================================================
 // File: test/tb.v (Peruri Web Simulator Sandbox Target)
-// Proyek: GarbleChip — Hardware Cryptography Accelerator (Chip Merah Putih Peruri)
-// Modul: tb_garblechip (Testbench Evaluator Sirkuit Private PIN)
-// Format Sintaks: 100% Mengikuti Standar Resmi Peruri (Template tb_lampu_lalu_lintas)
+// Project: GarbleChip — Hardware Cryptography Accelerator (Chip Merah Putih Peruri)
+// Module: tb_garblechip (Testbench for Private PIN Circuit Evaluator)
+// Syntax Standard: 100% Compliant with Official Peruri Template (tb_lampu_lalu_lintas)
 // ============================================================================
 
 module tb_garblechip;
@@ -50,7 +50,7 @@ module tb_garblechip;
   initial begin
     #20 rst_n = 1;
 
-    // STEP 1: Muat Label Input User (Kawat 0) = PIN Masukan Rahasia
+    // STEP 1: Load User Secret PIN Input Label (Wire 0)
     #20;
     opcode   = 2'd0; // OP_LOAD
     dst_id   = 3'd0;
@@ -59,7 +59,7 @@ module tb_garblechip;
     #10 start = 0;
     #20;
 
-    // STEP 2: Muat Label Input Server (Kawat 1) = Database Master Hash
+    // STEP 2: Load Server Credential Input Label (Wire 1)
     #20;
     opcode   = 2'd0; // OP_LOAD
     dst_id   = 3'd1;
@@ -68,7 +68,7 @@ module tb_garblechip;
     #10 start = 0;
     #20;
 
-    // STEP 3: Evaluasi Free-XOR: Kawat 2 = Kawat 0 ^ Kawat 1 (1 Siklus Akselerasi Instan)
+    // STEP 3: Evaluate Free-XOR: Wire 2 = Wire 0 ^ Wire 1 (0-Cycle Cryptographic Latency)
     #20;
     opcode   = 2'd1; // OP_XOR (Free-XOR)
     dst_id   = 3'd2;
@@ -78,7 +78,7 @@ module tb_garblechip;
     #10 start = 0;
     #20;
 
-    // STEP 4: Evaluasi Garbled AND (Half-Gates Zahur dengan Dual SHA-256 PRF Engine)
+    // STEP 4: Evaluate Garbled AND (Half-Gates Zahur with Iterative SHA-256 PRF Engine)
     #20;
     opcode   = 2'd2; // OP_AND (Half-Gates)
     dst_id   = 3'd3;
@@ -90,10 +90,10 @@ module tb_garblechip;
     start    = 1;
     #10 start = 0;
 
-    // Tunggu evaluasi 2x SHA-256 selesai (~132 siklus clock = ~1320 ns)
+    // Wait for SHA-256 evaluation to complete (~132 clock cycles = ~1320 ns)
     #1400;
 
-    // STEP 5: Verifikasi Hasil PIN Match (Kawat 2 vs Expected Label)
+    // STEP 5: Verify PIN Match Result (Wire 2 vs Expected Label)
     #20;
     opcode   = 2'd3; // OP_VERIFY
     src1_id  = 3'd2;
@@ -107,12 +107,12 @@ module tb_garblechip;
     $display("   Platform: Peruri Sandbox / Terasic DE10-Nano SoC    ");
     $display("=======================================================");
     $display(" Status Ready : %b | Done : %b", ready, done);
-    $display(" Status Match : %b (Ekspektasi: 1'b1 - PIN MATCH)", match);
-    $display(" Total Siklus : %0d siklus clock", timer);
+    $display(" Status Match : %b (Expected: 1'b1 - PIN MATCH)", match);
+    $display(" Total Cycles : %0d clock cycles", timer);
     if (match === 1'b1) begin
-      $display(" >>> HASIL: PASSED! Private PIN Verification Berhasil! <<<");
+      $display(" >>> STATUS: PASSED! Private PIN Verification Succeeded! <<<");
     end else begin
-      $display(" >>> HASIL: FAILED! <<<");
+      $display(" >>> STATUS: FAILED! <<<");
     end
     $display("=======================================================\n");
 

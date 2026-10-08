@@ -1,0 +1,17 @@
+# Build artifacts and temp files
+*.pdf
+parser.out
+parsetab.py
+__pycache__/
+*.py[cod]
+*$py.class
+*.vcd
+simulasi.vcd
+*.log
+
+# Editor and IDE metadata
+.vscode/
+.idea/
+.gemini/
+.tempmediaStorage/
+.user_uploaded/
